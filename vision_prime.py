@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 from datetime import datetime
 from pathlib import Path
+import torch
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -198,13 +199,14 @@ class DetectionWorker(QThread):
         self.model            = None
         self.yolo_type        = "ultralytics"
         self.model_name       = ""
+        self.device           = "cuda" if torch.cuda.is_available() else "cpu"
         self.confidence       = 0.50
         self.last_raw_frame   = None          # raw frame from most recent inference
         self.last_detections  = []            # list of (x1,y1,x2,y2,cls,conf)
         self._queue           = []
         self._mutex           = QMutex()
         self._active          = False
-
+        print(f"Running on: {'CUDA - ' + torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'}")
     def load_model(self, path: str, yolo_type: str) -> bool:
         try:
             if yolo_type == "yolov5":
@@ -705,6 +707,7 @@ class VisionPrimeWindow(QMainWindow):
         self._last_raw_frame     = None           # latest unmodified frame for capture
         self._auto_capture_count = 0
         self._last_auto_ts       = 0.0
+        self._total_det_count    = 0
         self._cam_thread: CameraThread | None = None
 
         # Detection worker
@@ -1019,12 +1022,12 @@ class VisionPrimeWindow(QMainWindow):
 
         # Session Statistics
         stat = QGroupBox("Session Statistics")
-        sl   = QHBoxLayout(stat)
+        sl   = QHBoxLayout(stat)if
         sl.setSpacing(8)
         sl.setContentsMargins(10, 8, 10, 8)
 
-        self._w_ok_cnt  = self._stat_card("0", C['green'], "OK Count")
-        self._w_ng_cnt  = self._stat_card("0", C['red'],   "NG Count")
+        self._w_ok_cnt  = self._stat_card("0", C['green'], "Detect Count")
+        self._w_ng_cnt  = self._stat_card("0", C['red'],   "Not detect")
         self._w_ok_rate = self._stat_card("—", C['blue'],  "OK Rate")
         self._w_ng_rate = self._stat_card("—", "#f97316",  "NG Rate")
         for card in (self._w_ok_cnt, self._w_ng_cnt, self._w_ok_rate, self._w_ng_rate):
@@ -1116,6 +1119,7 @@ class VisionPrimeWindow(QMainWindow):
 
         self._running = True
         self._session_ok = self._session_ng = self._fps_count = 0
+        self._total_det_count = 0
         self._last_log_ts = 0.0
         self._fps_timer.start(1000)
         self._set_run_state(True)
@@ -1141,6 +1145,23 @@ class VisionPrimeWindow(QMainWindow):
 
     def _on_detection(self, frame: np.ndarray, ok_n: int, ng_n: int, ok_r: float, ng_r: float):
         self._show_frame(frame)
+        det_n = len(self._det_worker.last_detections)
+        self._session_ok += ok_n
+        self._session_ng += ng_n
+        total = self._session_ok + self._session_ng or 1
+        self._w_ok_cnt.val_lbl.setText(str(det_n))
+        self._w_ng_cnt.val_lbl.setText(str(self._session_ng))
+        self._w_ok_rate.val_lbl.setText(f"{self._session_ok / total * 100:.1f}%")
+        self._w_ng_rate.val_lbl.setText(f"{self._session_ng / total * 100:.1f}%")
+        self._badge_ok.setText(f"OK: {self._session_ok}")
+        self._badge_ng.setText(f"NG: {self._session_ng}")
+        is_ng = ng_n > 0
+        now = time.time()
+        if now - self._last_log_ts >= 1.0:
+            self._last_log_ts = now
+            self._add_row(ok_n, ng_n, ok_r, ng_r, is_ng)
+        if is_ng and self._det_worker.last_raw_frame is not None:
+            self._save_ng(self._det_worker.last_raw_frame)
 
     def _show_frame(self, frame: np.ndarray):
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -1197,6 +1218,7 @@ class VisionPrimeWindow(QMainWindow):
         self._daily_check_ok = False
         self._model_path     = ""
         self._session_ok = self._session_ng = self._row_count = 0
+        self._total_det_count = 0
         self._det_worker.model      = None
         self._det_worker.model_name = ""
 
