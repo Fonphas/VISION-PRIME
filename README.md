@@ -7,7 +7,7 @@ Real-time YOLO object detection GUI for industrial quality inspection, built wit
 ## Features
 
 - **Live detection feed** — camera index (0/1/2) or video file input at 1280×720
-- **YOLO framework support** — YOLOv8/v9/v10/v11 via Ultralytics, or YOLOv5 via `torch.hub`
+- **YOLO framework support** — YOLOv11 via Ultralytics `torch.hub`
 - **OK / NG classification** — any detection whose label contains `ng`, `defect`, `bad`, `fail`, `error`, or `nok` is treated as NG; all others are OK
 - **Auto NG capture** — NG frames are automatically saved to `NG_Captures/YYYY-MM-DD/`
 - **Daily system check** — live camera test with a reference sample before each run
@@ -36,12 +36,12 @@ pip install PyQt5 opencv-python>=4.8 numpy>=1.24 ultralytics>=8.0
 
 **PyTorch (Jetson aarch64)** — install from the bundled wheels in this repo:
 ```bash
-pip install "torch-2.11.0-cp310-cp310-linux_aarch64 (1).whl"
+pip install torch-2.11.0-cp310-cp310-linux_aarch64.whl
 pip install torchvision-0.26.0-cp310-cp310-linux_aarch64.whl
 pip install torchaudio-2.10.0-cp310-cp310-linux_aarch64.whl
 ```
 
-> YOLOv5 is loaded via `torch.hub` — no separate install needed.
+> YOLOv11 is loaded via `torch.hub` — no separate install needed.
 
 ---
 
@@ -62,7 +62,7 @@ python vision_prime.py
 
 | Step | Action |
 |------|--------|
-| 1 | Select YOLO framework (YOLOv8+ or YOLOv5) |
+| 1 | Select YOLO framework (YOLOv11) |
 | 2 | Browse and load a `.pt` model file |
 | 3 | Run the **Daily Check** — place an OK reference sample in view and press Run Test |
 | 4 | Select video source (Camera 0/1/2 or Video File) |
@@ -134,7 +134,7 @@ VISION-PRIME/
 ├── yolo11n.pt                               # YOLOv11 nano model
 ├── SRG14_L ver1.pt                          # Custom left model
 ├── SRG14_R ver1.pt                          # Custom right model
-├── torch-2.11.0-cp310-cp310-linux_aarch64 (1).whl
+├── torch-2.11.0-cp310-cp310-linux_aarch64.whl
 ├── torchvision-0.26.0-cp310-cp310-linux_aarch64.whl
 └── torchaudio-2.10.0-cp310-cp310-linux_aarch64.whl
 ```
